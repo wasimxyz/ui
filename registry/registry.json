@@ -1,6 +1,6 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
-  "name": "wasim",
+  "name": "wasimxyz",
   "homepage": "https://github.com/wasimxyz/ui",
   "items": [
     {
@@ -16,27 +16,27 @@
       "categories": ["dashboard", "github"],
       "files": [
         {
-          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-data.ts",
+          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions-data.ts",
           "type": "registry:lib",
           "target": "lib/github-hourly-contributions-data.ts"
         },
         {
-          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-layout.ts",
+          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions-layout.ts",
           "type": "registry:component",
           "target": "components/github-hourly-contributions-layout.ts"
         },
         {
-          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-grid.tsx",
+          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions-grid.tsx",
           "type": "registry:component",
           "target": "components/github-hourly-contributions-grid.tsx"
         },
         {
-          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-skeleton.tsx",
+          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions-skeleton.tsx",
           "type": "registry:component",
           "target": "components/github-hourly-contributions-skeleton.tsx"
         },
         {
-          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions.tsx",
+          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions.tsx",
           "type": "registry:component",
           "target": "components/github-hourly-contributions.tsx"
         }

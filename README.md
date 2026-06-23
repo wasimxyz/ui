@@ -1,4 +1,4 @@
-# @wasim/ui
+# @wasimxyz/ui
 
 A [shadcn/ui registry](https://ui.shadcn.com/docs/registry) of components I use
 on [wasimamiri.com](https://wasimamiri.com). Install any item with the shadcn
@@ -23,19 +23,19 @@ skeleton.
 npx shadcn@latest add wasimxyz/ui/github-hourly-contributions
 ```
 
-**Via the `@wasim` namespace** — add this to your project's `components.json`,
+**Via the `@wasimxyz` namespace** — add this to your project's `components.json`,
 then install by name:
 
 ```json
 {
   "registries": {
-    "@wasim": "https://raw.githubusercontent.com/wasimxyz/ui/main/r/{name}.json"
+    "@wasimxyz": "https://raw.githubusercontent.com/wasimxyz/ui/main/registry/{name}.json"
   }
 }
 ```
 
 ```bash
-npx shadcn@latest add @wasim/github-hourly-contributions
+npx shadcn@latest add @wasimxyz/github-hourly-contributions
 ```
 
 Either command also pulls the shadcn `tooltip` and `skeleton` components it
@@ -83,11 +83,11 @@ to refresh on demand.
 
 ```bash
 npm install
-npm run registry:build   # writes r/<item>.json from registry.json
+npm run registry:build   # writes registry/<item>.json from registry.json
 ```
 
-The built JSON under `r/` is committed so the `@wasim` namespace can resolve
-items from raw GitHub.
+The built JSON under `registry/` (alongside the component source) is committed
+so the `@wasimxyz` namespace can resolve items from raw GitHub.
 
 ## License
 
