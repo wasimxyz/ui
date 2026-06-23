@@ -18,7 +18,7 @@
         {
           "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-data.ts",
           "type": "registry:lib",
-          "target": "lib/github-hourly-contributions.ts"
+          "target": "lib/github-hourly-contributions-data.ts"
         },
         {
           "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-layout.ts",

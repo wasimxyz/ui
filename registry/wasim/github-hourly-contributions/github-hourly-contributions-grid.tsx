@@ -17,7 +17,7 @@ import {
 import type {
   CellBreakdown,
   ContributionHeatmap
-} from "@/lib/github-hourly-contributions";
+} from "@/lib/github-hourly-contributions-data";
 import { cn } from "@/lib/utils";
 
 const DAY_NAMES = [
