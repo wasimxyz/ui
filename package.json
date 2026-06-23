@@ -1,0 +1,15 @@
+{
+  "name": "@wasim/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wasim's shadcn/ui registry.",
+  "homepage": "https://github.com/wasimxyz/ui",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "registry:build": "shadcn build --output r"
+  },
+  "devDependencies": {
+    "shadcn": "latest"
+  }
+}

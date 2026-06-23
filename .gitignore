@@ -1,0 +1,7 @@
+node_modules
+.DS_Store
+*.log
+.env
+.env.*
+!.env.template
+# NOTE: r/ holds the built registry JSON and is intentionally committed.

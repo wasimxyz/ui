@@ -1,0 +1,46 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "wasim",
+  "homepage": "https://github.com/wasimxyz/ui",
+  "items": [
+    {
+      "name": "github-hourly-contributions",
+      "type": "registry:block",
+      "title": "GitHub Hourly Contributions",
+      "description": "A day-of-week x hour-of-day heatmap of a user's GitHub activity (commits pushed, pull requests and issues opened) for the current week, with per-cell tooltips. Grayscale, light/dark aware.",
+      "registryDependencies": ["tooltip", "skeleton"],
+      "envVars": {
+        "GITHUB_TOKEN": "",
+        "GITHUB_USERNAME": ""
+      },
+      "categories": ["dashboard", "github"],
+      "files": [
+        {
+          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-data.ts",
+          "type": "registry:lib",
+          "target": "lib/github-hourly-contributions.ts"
+        },
+        {
+          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-layout.ts",
+          "type": "registry:component",
+          "target": "components/github-hourly-contributions-layout.ts"
+        },
+        {
+          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-grid.tsx",
+          "type": "registry:component",
+          "target": "components/github-hourly-contributions-grid.tsx"
+        },
+        {
+          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions-skeleton.tsx",
+          "type": "registry:component",
+          "target": "components/github-hourly-contributions-skeleton.tsx"
+        },
+        {
+          "path": "registry/wasim/github-hourly-contributions/github-hourly-contributions.tsx",
+          "type": "registry:component",
+          "target": "components/github-hourly-contributions.tsx"
+        }
+      ]
+    }
+  ]
+}
