@@ -1,15 +1,19 @@
 {
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
+    "shadcn": "latest",
+    "ultracite": "^7.8.3"
+  },
   "name": "@wasimxyz/ui",
+  "scripts": {
+    "registry:build": "shadcn build --output registry",
+    "check": "ultracite check",
+    "fix": "ultracite fix"
+  },
+  "type": "module",
   "version": "0.1.0",
   "private": true,
   "description": "Wasim's shadcn/ui registry.",
   "homepage": "https://github.com/wasimxyz/ui",
-  "license": "MIT",
-  "type": "module",
-  "scripts": {
-    "registry:build": "shadcn build --output registry"
-  },
-  "devDependencies": {
-    "shadcn": "latest"
-  }
+  "license": "MIT"
 }

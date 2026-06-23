@@ -4,5 +4,9 @@ node_modules
 .env
 .env.*
 !.env.template
+
+# Machine-local Claude Code settings (the shared CLAUDE.md is committed).
+.claude/settings.local.json
+
 # NOTE: registry/ holds both the component source and the built registry JSON,
 # both intentionally committed.
