@@ -363,9 +363,17 @@ async function recordCommits(
 /**
  * Builds a day-of-week × hour-of-day heatmap of the user's GitHub
  * contributions — commits pushed (to any branch), pull requests opened, and
- * issues opened — for the current week (Monday → now) in the given `timeZone`.
- * Each cell carries a per-type breakdown. Only aggregate timing counts are
- * produced; repo names and content are never surfaced.
+ * issues opened — for the week bounded by `weekStart`…`today` (the current
+ * Monday → now) in the given `timeZone`. Each cell carries a per-type
+ * breakdown. Only aggregate timing counts are produced; repo names and content
+ * are never surfaced.
+ *
+ * `weekStart` and `today` are passed in (not read from `new Date()` here) on
+ * purpose: this function is cached with `use cache`, and a clock read inside
+ * that scope would be frozen to build time. Taking the bounds as arguments
+ * makes them part of the cache key, so the entry refreshes as the day/week
+ * advances. The caller (`GithubHourlyContributions`) computes them at request
+ * time.
  *
  * Three real-time, token-authenticated (private-inclusive) sources are used,
  * because no single one is both complete and current for the week:
@@ -382,9 +390,13 @@ async function recordCommits(
  * fails, so the page degrades gracefully.
  */
 export async function getContributionHeatmap({
-  timeZone
+  timeZone,
+  weekStart,
+  today
 }: {
   timeZone: string;
+  weekStart: string;
+  today: string;
 }): Promise<ContributionHeatmap> {
   "use cache";
   cacheLife({ revalidate: 1800 });
@@ -397,7 +409,6 @@ export async function getContributionHeatmap({
   }
 
   const formatter = createPartsFormatter(timeZone);
-  const { weekStart, today } = currentWeekRange(formatter);
   const grid = createEmptyGrid();
   const totals = emptyCell();
 
@@ -672,6 +683,10 @@ export async function GithubHourlyContributions({
 }: {
   timeZone?: string;
 } = {}) {
-  const data = await getContributionHeatmap({ timeZone });
+  // Read "now" at request time, outside the cached `getContributionHeatmap`
+  // scope, and pass the week bounds in so they key the cache. Computing them
+  // inside `use cache` would freeze the week to build time.
+  const { weekStart, today } = currentWeekRange(createPartsFormatter(timeZone));
+  const data = await getContributionHeatmap({ timeZone, weekStart, today });
   return <GithubHourlyContributionsGrid {...data} />;
 }
