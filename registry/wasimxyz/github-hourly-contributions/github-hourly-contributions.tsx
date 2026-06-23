@@ -6,7 +6,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +58,7 @@ const WEEKDAY_TO_ROW: Record<string, number> = {
   Thu: 3,
   Fri: 4,
   Sat: 5,
-  Sun: 6
+  Sun: 6,
 };
 
 // Build the formatter that buckets timestamps into the configured timezone.
@@ -71,7 +71,7 @@ function createPartsFormatter(timeZone: string): Intl.DateTimeFormat {
     day: "2-digit",
     hour: "2-digit",
     hour12: false,
-    hourCycle: "h23"
+    hourCycle: "h23",
   });
 }
 
@@ -156,8 +156,8 @@ async function githubFetch<T>(url: string, token: string): Promise<T> {
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28"
-    }
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
   });
 
   if (!response.ok) {
@@ -392,7 +392,7 @@ async function recordCommits(
 export async function getContributionHeatmap({
   timeZone,
   weekStart,
-  today
+  today,
 }: {
   timeZone: string;
   weekStart: string;
@@ -415,7 +415,7 @@ export async function getContributionHeatmap({
   try {
     const [events, issues] = await Promise.all([
       fetchWeekEvents(token, username, weekStart),
-      fetchWeekIssues(token, username, weekStart)
+      fetchWeekIssues(token, username, weekStart),
     ]);
 
     await recordCommits(
@@ -498,7 +498,7 @@ const DAY_NAMES = [
   "Thursday",
   "Friday",
   "Saturday",
-  "Sunday"
+  "Sunday",
 ];
 
 // Grayscale intensity steps, lightest → darkest (opacity of --foreground).
@@ -507,7 +507,7 @@ const LEVEL_CLASSES = [
   "bg-foreground/20",
   "bg-foreground/40",
   "bg-foreground/60",
-  "bg-foreground/85"
+  "bg-foreground/85",
 ];
 
 // Column positions (every 6 hours) to label on the x-axis.
@@ -551,7 +551,7 @@ function HeatmapCell({
   cell,
   dayIndex,
   hour,
-  max
+  max,
 }: {
   cell: CellBreakdown;
   dayIndex: number;
@@ -562,7 +562,7 @@ function HeatmapCell({
   const lines = [
     cell.commits > 0 ? plural(cell.commits, "commit") : null,
     cell.pullRequests > 0 ? plural(cell.pullRequests, "pull request") : null,
-    cell.issues > 0 ? plural(cell.issues, "issue") : null
+    cell.issues > 0 ? plural(cell.issues, "issue") : null,
   ].filter((line): line is string => line !== null);
 
   return (
@@ -589,7 +589,7 @@ function HeatmapCell({
 function GithubHourlyContributionsGrid({
   grid,
   max,
-  totals
+  totals,
 }: ContributionHeatmap) {
   return (
     <TooltipProvider>
@@ -679,7 +679,7 @@ export function GithubHourlyContributionsSkeleton() {
 // ---------------------------------------------------------------------------
 
 export async function GithubHourlyContributions({
-  timeZone = "America/Los_Angeles"
+  timeZone = "America/Los_Angeles",
 }: {
   timeZone?: string;
 } = {}) {
