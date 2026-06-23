@@ -16,26 +16,6 @@
       "categories": ["dashboard", "github"],
       "files": [
         {
-          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions-data.ts",
-          "type": "registry:lib",
-          "target": "lib/github-hourly-contributions-data.ts"
-        },
-        {
-          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions-layout.ts",
-          "type": "registry:component",
-          "target": "components/github-hourly-contributions-layout.ts"
-        },
-        {
-          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions-grid.tsx",
-          "type": "registry:component",
-          "target": "components/github-hourly-contributions-grid.tsx"
-        },
-        {
-          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions-skeleton.tsx",
-          "type": "registry:component",
-          "target": "components/github-hourly-contributions-skeleton.tsx"
-        },
-        {
           "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions.tsx",
           "type": "registry:component",
           "target": "components/github-hourly-contributions.tsx"
