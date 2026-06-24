@@ -1,6 +1,7 @@
 "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
+import { connection } from "next/server";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -683,6 +684,12 @@ export async function GithubHourlyContributions({
 }: {
   timeZone?: string;
 } = {}) {
+  // Halt prerendering here so everything below runs per request. Without this,
+  // Next.js prerenders this component and freezes the `new Date()` read in
+  // `currentWeekRange` to build time — on Vercel the heatmap would then only
+  // refresh when ISR regenerates the shell, drifting stale as `age` climbs.
+  await connection();
+
   // Read "now" at request time, outside the cached `getContributionHeatmap`
   // scope, and pass the week bounds in so they key the cache. Computing them
   // inside `use cache` would freeze the week to build time.
