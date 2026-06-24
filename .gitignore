@@ -8,5 +8,6 @@ node_modules
 # Machine-local Claude Code settings (the shared CLAUDE.md is committed).
 .claude/settings.local.json
 
-# NOTE: registry/ holds both the component source and the built registry JSON,
-# both intentionally committed.
+# NOTE: registry/ holds the component source and public/registry/ holds the
+# built registry JSON. public/registry/ is intentionally committed (not ignored)
+# so the @wasimxyz registry resolves over raw.githubusercontent.com.

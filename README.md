@@ -29,7 +29,7 @@ then install by name:
 ```json
 {
   "registries": {
-    "@wasimxyz": "https://raw.githubusercontent.com/wasimxyz/ui/main/registry/{name}.json"
+    "@wasimxyz": "https://raw.githubusercontent.com/wasimxyz/ui/main/public/registry/{name}.json"
   }
 }
 ```
@@ -83,11 +83,11 @@ to refresh on demand.
 
 ```bash
 npm install
-npm run registry:build   # writes registry/<item>.json from registry.json
+npm run registry:build   # writes public/registry/<item>.json from registry.json
 ```
 
-The built JSON under `registry/` (alongside the component source) is committed
-so the `@wasimxyz` namespace can resolve items from raw GitHub.
+The built JSON under `public/registry/` is committed (the component source lives
+under `registry/`) so the `@wasimxyz` namespace can resolve items from raw GitHub.
 
 ## License
 
