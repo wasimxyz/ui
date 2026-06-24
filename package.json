@@ -6,7 +6,7 @@
   },
   "name": "@wasimxyz/ui",
   "scripts": {
-    "registry:build": "shadcn build --output registry",
+    "registry:build": "shadcn build --output public/registry",
     "check": "ultracite check",
     "fix": "ultracite fix"
   },
