@@ -3,7 +3,10 @@
   "name": "github-hourly-contributions",
   "title": "GitHub Hourly Contributions",
   "description": "A day-of-week x hour-of-day heatmap of a user's GitHub activity (commits pushed, pull requests and issues opened) for the current week, with per-cell tooltips. Grayscale, light/dark aware.",
-  "registryDependencies": ["tooltip", "skeleton"],
+  "registryDependencies": [
+    "tooltip",
+    "skeleton"
+  ],
   "files": [
     {
       "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions.tsx",
@@ -16,6 +19,9 @@
     "GITHUB_TOKEN": "",
     "GITHUB_USERNAME": ""
   },
-  "categories": ["dashboard", "github"],
+  "categories": [
+    "dashboard",
+    "github"
+  ],
   "type": "registry:block"
 }
