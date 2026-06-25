@@ -471,8 +471,8 @@ export async function getContributionHeatmap({
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
-// X-axis runs 6am → 5am the next day: hours 6,7,…,23,0,…,5 across the columns.
-const START_HOUR = 6;
+// X-axis runs 12am → 11pm: hours 0,1,…,23 across the columns.
+const START_HOUR = 0;
 const HOUR_ORDER = Array.from(
   { length: 24 },
   (_, index) => (index + START_HOUR) % 24
@@ -587,6 +587,35 @@ function HeatmapCell({
   );
 }
 
+// The x-axis hour labels are fully static (they don't depend on the fetched
+// data), so the grid and its loading skeleton share this row to stay
+// pixel-aligned and avoid any layout shift when the data resolves.
+function HourAxis() {
+  return (
+    <div
+      className={cn(
+        "grid gap-1 pt-1 text-muted-foreground text-xs md:gap-2",
+        GRID_COLS
+      )}
+    >
+      <span />
+      {LABEL_POSITIONS.map((position, index) => {
+        const isLast = index === LABEL_POSITIONS.length - 1;
+        return (
+          <span
+            className={cn("col-span-6", isLast && "flex justify-between")}
+            key={position}
+          >
+            <span>{shortHour(HOUR_ORDER[position])}</span>
+            {/* The final block also labels the end of the axis (11pm). */}
+            {isLast ? <span>{shortHour(HOUR_ORDER[23])}</span> : null}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function GithubHourlyContributionsGrid({
   grid,
   max,
@@ -620,27 +649,7 @@ function GithubHourlyContributionsGrid({
               ))}
             </div>
           ))}
-          <div
-            className={cn(
-              "grid gap-1 pt-1 text-muted-foreground text-xs md:gap-2",
-              GRID_COLS
-            )}
-          >
-            <span />
-            {LABEL_POSITIONS.map((position, index) => {
-              const isLast = index === LABEL_POSITIONS.length - 1;
-              return (
-                <span
-                  className={cn("col-span-6", isLast && "flex justify-between")}
-                  key={position}
-                >
-                  <span>{shortHour(HOUR_ORDER[position])}</span>
-                  {/* The final block also labels the wrap-around end (5am). */}
-                  {isLast ? <span>{shortHour(HOUR_ORDER[23])}</span> : null}
-                </span>
-              );
-            })}
-          </div>
+          <HourAxis />
         </div>
         <span className="text-muted-foreground text-sm">
           {plural(totals.commits, "commit")} pushed,{" "}
@@ -670,7 +679,13 @@ export function GithubHourlyContributionsSkeleton() {
             ))}
           </div>
         ))}
+        {/* Real x-axis labels — static, so render them as-is to match the
+            loaded grid exactly. */}
+        <HourAxis />
       </div>
+      {/* Placeholder for the summary line, sized to the text-sm row it
+          replaces, so the layout doesn't shift when the data resolves. */}
+      <Skeleton className="h-5 w-72" />
     </div>
   );
 }
