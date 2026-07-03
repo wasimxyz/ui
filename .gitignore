@@ -5,6 +5,11 @@ node_modules
 .env.*
 !.env.template
 
+# Next.js demo app
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
 # Machine-local Claude Code settings (the shared CLAUDE.md is committed).
 .claude/settings.local.json
 
