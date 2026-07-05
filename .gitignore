@@ -5,8 +5,14 @@ node_modules
 .env.*
 !.env.template
 
-# Machine-local Claude Code settings (the shared CLAUDE.md is committed).
-.claude/settings.local.json
+# Next.js demo app
+.next/
+next-env.d.ts
+*.tsbuildinfo
+
+# Editor and Claude Code settings (kept local, not committed).
+.vscode/
+.claude/
 
 # NOTE: registry/ holds the component source and public/registry/ holds the
 # built registry JSON. public/registry/ is intentionally committed (not ignored)
