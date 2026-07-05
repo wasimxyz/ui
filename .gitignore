@@ -10,7 +10,9 @@ node_modules
 next-env.d.ts
 *.tsbuildinfo
 
-# Machine-local Claude Code settings (the shared CLAUDE.md is committed).
+# Editor and Claude Code settings (kept local, not committed).
+.vscode/
+CLAUDE.md
 .claude/settings.local.json
 
 # NOTE: registry/ holds the component source and public/registry/ holds the
