@@ -12,8 +12,7 @@ next-env.d.ts
 
 # Editor and Claude Code settings (kept local, not committed).
 .vscode/
-CLAUDE.md
-.claude/settings.local.json
+.claude/
 
 # NOTE: registry/ holds the component source and public/registry/ holds the
 # built registry JSON. public/registry/ is intentionally committed (not ignored)
