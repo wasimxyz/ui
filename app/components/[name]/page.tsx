@@ -30,8 +30,10 @@ export async function generateMetadata({
 
 export default async function ComponentPage({
   params,
+  searchParams,
 }: {
   params: Promise<PageParams>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { name } = await params;
   const item = getRegistryItem(name);
@@ -41,7 +43,7 @@ export default async function ComponentPage({
     notFound();
   }
 
-  const { Component, Skeleton } = render;
+  const { Component, Skeleton, Demo } = render;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10">
@@ -51,8 +53,10 @@ export default async function ComponentPage({
       </header>
 
       <div className="w-full">
+        {/* `searchParams` is awaited inside `Demo` (under this boundary) so its
+            dynamic read stays within Suspense, as `cacheComponents` requires. */}
         <Suspense fallback={<Skeleton />}>
-          <Component />
+          {Demo ? <Demo searchParams={searchParams} /> : <Component />}
         </Suspense>
       </div>
     </div>
