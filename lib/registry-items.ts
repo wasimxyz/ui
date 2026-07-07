@@ -17,7 +17,7 @@ export const registryItems: readonly RegistryItem[] = [
     name: "github-hourly-contributions",
     title: "GitHub Hourly Contributions",
     description:
-      "A day-of-week × hour-of-day heatmap of a GitHub user's activity for the current week, with per-cell tooltips. Grayscale, light/dark aware.",
+      "A day-of-week × hour-of-day heatmap of a GitHub user's activity for a given week (defaults to the current one), with per-cell tooltips and a customizable color scale. Light/dark aware.",
   },
 ] as const;
 
