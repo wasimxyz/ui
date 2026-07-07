@@ -814,6 +814,13 @@ function GithubHourlyContributionsGrid({
     }
   }
 
+  // Summarize only the kinds with activity, so "0 X" phrases are omitted.
+  const summary =
+    activeTypes
+      .filter((kind) => totals[kind] > 0)
+      .map((kind) => summaryPhrase(kind, totals[kind]))
+      .join(", ") || "No contributions this week";
+
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-3 overflow-x-auto">
@@ -846,11 +853,7 @@ function GithubHourlyContributionsGrid({
           ))}
           <HourAxis />
         </div>
-        <span className="text-muted-foreground text-sm">
-          {activeTypes
-            .map((kind) => summaryPhrase(kind, totals[kind]))
-            .join(", ")}
-        </span>
+        <span className="text-muted-foreground text-sm">{summary}</span>
       </div>
     </TooltipProvider>
   );
