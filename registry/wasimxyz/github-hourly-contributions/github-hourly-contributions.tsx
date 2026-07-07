@@ -56,7 +56,8 @@ export const CONTRIBUTION_KINDS: readonly ContributionKind[] = [
 ];
 
 export interface ContributionHeatmap {
-  // 7 rows (0 = Monday … 6 = Sunday) × 24 columns (0–23 local hour).
+  // 7 rows (0 = Sunday … 6 = Saturday, i.e. JS getDay order) × 24 columns
+  // (0–23 local hour). The starting day is applied at render time.
   grid: CellBreakdown[][];
   // Highest per-cell total, used to scale the heatmap intensity.
   max: number;
@@ -64,16 +65,37 @@ export interface ContributionHeatmap {
   totals: CellBreakdown;
 }
 
-// Map the short weekday name to a Monday-first row index, matching the
-// M T W T F S S ordering.
-const WEEKDAY_TO_ROW: Record<string, number> = {
-  Mon: 0,
-  Tue: 1,
-  Wed: 2,
-  Thu: 3,
-  Fri: 4,
-  Sat: 5,
-  Sun: 6,
+// Map the short weekday name to its JS getDay index (0 = Sunday … 6 = Saturday),
+// which is the canonical grid row. The configured start day only rotates the
+// rows at render time, so the stored grid stays start-day agnostic.
+const WEEKDAY_INDEX: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+// The day a week starts on, as a `weekStartsOn` prop value → its getDay index.
+export type WeekStart =
+  | "sunday"
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday";
+
+const WEEK_START_INDEX: Record<WeekStart, number> = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
 };
 
 // Build the formatter that buckets timestamps into the configured timezone.
@@ -138,26 +160,28 @@ function toYmd({ year, month, day }: CalendarDay): string {
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
-// The bounds of the week containing `reference`, as local YYYY-MM-DD strings.
-// `today` is the last day to include: the selected week's Sunday, or the real
-// current day (`nowYmd`) when that Sunday is still in the future — so upcoming
-// days of the current week aren't queried, while past weeks include all seven.
+// The bounds of the week containing `reference`, as local YYYY-MM-DD strings,
+// where the week begins on `weekStartsOn` (0 = Sunday … 6 = Saturday). `today`
+// is the last day to include: the week's final day, or the real current day
+// (`nowYmd`) when that is still in the future — so upcoming days of the current
+// week aren't queried, while past weeks include all seven.
 function weekRange(
   reference: CalendarDay,
-  nowYmd: string
+  nowYmd: string,
+  weekStartsOn: number
 ): { weekStart: string; today: string } {
-  // Whole-day arithmetic in UTC to find Monday of the reference week.
-  const monday = new Date(
+  // Whole-day arithmetic in UTC to find the week's first day.
+  const start = new Date(
     Date.UTC(reference.year, reference.month - 1, reference.day)
   );
-  // getUTCDay: 0 = Sunday … 6 = Saturday; shift to a Monday-first index.
-  const dayIndex = (monday.getUTCDay() + 6) % 7;
-  monday.setUTCDate(monday.getUTCDate() - dayIndex);
-  const weekStart = monday.toISOString().slice(0, 10);
+  // Days elapsed since the configured start-of-week.
+  const offset = (start.getUTCDay() - weekStartsOn + 7) % 7;
+  start.setUTCDate(start.getUTCDate() - offset);
+  const weekStart = start.toISOString().slice(0, 10);
 
-  const sunday = new Date(monday);
-  sunday.setUTCDate(sunday.getUTCDate() + 6);
-  const weekEnd = sunday.toISOString().slice(0, 10);
+  const last = new Date(start);
+  last.setUTCDate(last.getUTCDate() + 6);
+  const weekEnd = last.toISOString().slice(0, 10);
 
   const today = weekEnd < nowYmd ? weekEnd : nowYmd;
   return { weekStart, today };
@@ -220,7 +244,7 @@ function cellBucket(
     return null;
   }
 
-  const row = WEEKDAY_TO_ROW[weekday];
+  const row = WEEKDAY_INDEX[weekday];
   // "h23" yields 00–23, but normalize 24 → 0 defensively.
   const hour = Number.parseInt(hourValue, 10) % 24;
   if (row === undefined || Number.isNaN(hour)) {
@@ -491,8 +515,9 @@ function recordEventContributions(
  * Builds a day-of-week × hour-of-day heatmap of the user's GitHub
  * contributions — commits pushed (to any branch), pull requests and issues
  * opened, issues closed, pull request reviews submitted, and repositories
- * created — for the week bounded by `weekStart`…`today` (Monday → the end of
- * that week, capped at the current day) in the given `timeZone`. Each cell
+ * created — for the week bounded by `weekStart`…`today` (the caller's chosen
+ * start day → the end of that week, capped at the current day) in the given
+ * `timeZone`. Rows are stored in canonical Sunday-first order. Each cell
  * carries a per-type breakdown. Only aggregate timing counts are produced; repo
  * names and content are never surfaced.
  *
@@ -601,7 +626,17 @@ export async function getContributionHeatmap({
 // Shared by the interactive heatmap grid and its loading skeleton.
 // ---------------------------------------------------------------------------
 
-const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+// Single-letter labels, indexed by JS getDay (0 = Sunday … 6 = Saturday).
+const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+
+// The seven grid rows in display order for a week starting on `weekStartsOn`:
+// each entry is the canonical (Sunday-indexed) row to show at that position.
+function displayRows(weekStartsOn: number): number[] {
+  return Array.from(
+    { length: 7 },
+    (_, position) => (weekStartsOn + position) % 7
+  );
+}
 
 // X-axis runs 12am → 11pm: hours 0,1,…,23 across the columns.
 const START_HOUR = 0;
@@ -624,14 +659,15 @@ const ROW_STACK = "flex flex-col gap-1.5";
 // Presentation
 // ---------------------------------------------------------------------------
 
+// Full day names, indexed by JS getDay (0 = Sunday … 6 = Saturday).
 const DAY_NAMES = [
+  "Sunday",
   "Monday",
   "Tuesday",
   "Wednesday",
   "Thursday",
   "Friday",
   "Saturday",
-  "Sunday",
 ];
 
 // Per-kind display strings: singular/plural nouns (for tooltip lines and the
@@ -714,14 +750,14 @@ function summaryPhrase(kind: ContributionKind, count: number): string {
 function HeatmapCell({
   cell,
   colorScale,
-  dayIndex,
+  dayName,
   hour,
   max,
   types,
 }: {
   cell: CellBreakdown;
   colorScale: ColorScale;
-  dayIndex: number;
+  dayName: string;
   hour: number;
   max: number;
   types: readonly ContributionKind[];
@@ -736,13 +772,13 @@ function HeatmapCell({
   return (
     <Tooltip>
       <TooltipTrigger
-        aria-label={`${DAY_NAMES[dayIndex]} ${hourLabel(hour)}`}
+        aria-label={`${dayName} ${hourLabel(hour)}`}
         className={cn(CELL_CLASS, colorScale[level])}
         type="button"
       />
       <TooltipContent className="flex flex-col gap-0.5">
         <span className="font-medium">
-          {DAY_NAMES[dayIndex]} {hourLabel(hour)}
+          {dayName} {hourLabel(hour)}
         </span>
         {lines.length > 0 ? (
           lines.map((line) => <span key={line}>{line}</span>)
@@ -788,9 +824,11 @@ function GithubHourlyContributionsGrid({
   totals,
   colorScale = DEFAULT_COLOR_SCALE,
   types = CONTRIBUTION_KINDS,
+  weekStartsOn = 0,
 }: ContributionHeatmap & {
   colorScale?: ColorScale;
   types?: readonly ContributionKind[];
+  weekStartsOn?: number;
 }) {
   // Guard against an empty scale so a cell always has a class to render.
   const scale = colorScale.length > 0 ? colorScale : DEFAULT_COLOR_SCALE;
@@ -829,20 +867,19 @@ function GithubHourlyContributionsGrid({
           className={cn(ROW_STACK, GRID_WIDTH)}
           role="img"
         >
-          {grid.map((row, dayIndex) => (
+          {displayRows(weekStartsOn).map((dataRow) => (
             <div
               className={cn("grid items-center gap-1 md:gap-2", GRID_COLS)}
-              // biome-ignore lint/suspicious/noArrayIndexKey: fixed 7-day order
-              key={dayIndex}
+              key={dataRow}
             >
               <span className="text-muted-foreground text-xs">
-                {DAY_LABELS[dayIndex]}
+                {WEEKDAY_LABELS[dataRow]}
               </span>
               {HOUR_ORDER.map((hour) => (
                 <HeatmapCell
-                  cell={row[hour]}
+                  cell={grid[dataRow][hour]}
                   colorScale={scale}
-                  dayIndex={dayIndex}
+                  dayName={DAY_NAMES[dataRow]}
                   hour={hour}
                   key={hour}
                   max={max}
@@ -860,18 +897,24 @@ function GithubHourlyContributionsGrid({
 }
 
 // Loading state mirroring the grid's layout so the page doesn't shift when the
-// data resolves.
-export function GithubHourlyContributionsSkeleton() {
+// data resolves. Takes `weekStartsOn` (0 = Sunday … 6 = Saturday) so its day
+// labels can match a component configured with the same start day.
+export function GithubHourlyContributionsSkeleton({
+  weekStartsOn = 0,
+}: {
+  weekStartsOn?: number;
+} = {}) {
   return (
     <div className="flex flex-col gap-3 overflow-x-auto">
       <div className={cn(ROW_STACK, GRID_WIDTH)}>
-        {DAY_LABELS.map((label, dayIndex) => (
+        {displayRows(weekStartsOn).map((dataRow) => (
           <div
             className={cn("grid items-center gap-1 md:gap-2", GRID_COLS)}
-            // biome-ignore lint/suspicious/noArrayIndexKey: fixed 7-day order
-            key={dayIndex}
+            key={dataRow}
           >
-            <span className="text-muted-foreground text-xs">{label}</span>
+            <span className="text-muted-foreground text-xs">
+              {WEEKDAY_LABELS[dataRow]}
+            </span>
             {HOUR_ORDER.map((hour) => (
               <Skeleton className={CELL_CLASS} key={hour} />
             ))}
@@ -895,6 +938,7 @@ export function GithubHourlyContributionsSkeleton() {
 export async function GithubHourlyContributions({
   timeZone = "America/Los_Angeles",
   week,
+  weekStartsOn = "sunday",
   colorScale = DEFAULT_COLOR_SCALE,
   types = CONTRIBUTION_KINDS,
 }: {
@@ -904,6 +948,11 @@ export async function GithubHourlyContributions({
    * `YYYY-MM-DD` string. Defaults to the current week.
    */
   week?: Date | string;
+  /**
+   * The day each row starts on — `"sunday"` … `"saturday"`. Sets both the
+   * week's date range and the order of the rows. Defaults to `"sunday"`.
+   */
+  weekStartsOn?: WeekStart;
   /**
    * Heatmap color scale, lightest (empty) → darkest. Any shadcn color token
    * works; e.g. `PRIMARY_COLOR_SCALE`. Defaults to `DEFAULT_COLOR_SCALE`.
@@ -930,13 +979,15 @@ export async function GithubHourlyContributions({
   const formatter = createPartsFormatter(timeZone);
   const nowYmd = toYmd(localCalendarDay(formatter, now));
   const reference = resolveReferenceDay(week, formatter, now);
-  const { weekStart, today } = weekRange(reference, nowYmd);
+  const startIndex = WEEK_START_INDEX[weekStartsOn];
+  const { weekStart, today } = weekRange(reference, nowYmd, startIndex);
   const data = await getContributionHeatmap({ timeZone, weekStart, today });
   return (
     <GithubHourlyContributionsGrid
       {...data}
       colorScale={colorScale}
       types={types}
+      weekStartsOn={startIndex}
     />
   );
 }
