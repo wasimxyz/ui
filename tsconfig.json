@@ -19,6 +19,12 @@
       }
     ],
     "paths": {
+      "@/components/week-activity-calendar": [
+        "./registry/wasimxyz/week-activity-calendar/week-activity-calendar.tsx"
+      ],
+      "@/lib/fetch-github-contributions": [
+        "./registry/wasimxyz/fetch-github-contributions/fetch-github-contributions.ts"
+      ],
       "@/*": ["./*"]
     }
   },

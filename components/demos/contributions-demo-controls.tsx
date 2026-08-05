@@ -15,9 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-// The contribution kinds, mirrored here (with demo-friendly labels) so this
-// client control doesn't import the "server-only" component module. Order
-// matches the component's canonical order.
+// Activity kinds shown in the demo filter (GitHub series + sample meetings).
+// Mirrored here so this client control doesn't import server-only modules.
 const KIND_OPTIONS = [
   { value: "commits", label: "Commits" },
   { value: "pullRequests", label: "Pull requests" },
@@ -25,6 +24,7 @@ const KIND_OPTIONS = [
   { value: "issuesClosed", label: "Issues closed" },
   { value: "reviews", label: "Reviews" },
   { value: "repositories", label: "Repositories" },
+  { value: "meetings", label: "Meetings" },
 ] as const;
 
 const KIND_ORDER = KIND_OPTIONS.map((option) => option.value);
@@ -141,7 +141,7 @@ export function ContributionsDemoControls({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuLabel>Contribution types</DropdownMenuLabel>
+          <DropdownMenuLabel>Activity types</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {KIND_OPTIONS.map((option) => (
             <DropdownMenuCheckboxItem

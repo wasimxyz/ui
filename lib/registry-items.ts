@@ -14,10 +14,10 @@ export interface RegistryItem {
 
 export const registryItems: readonly RegistryItem[] = [
   {
-    name: "github-hourly-contributions",
-    title: "GitHub Hourly Contributions",
+    name: "week-activity-calendar",
+    title: "Week Activity Calendar",
     description:
-      "A day-of-week × hour-of-day heatmap of a GitHub user's activity for a given week (defaults to the current one), with per-cell tooltips and a customizable color scale. Light/dark aware.",
+      "A day-of-week × hour-of-day heatmap that merges activity series (e.g. GitHub contributions and meetings) into one week calendar, with per-cell tooltips and a customizable color scale. Light/dark aware.",
   },
 ] as const;
 
