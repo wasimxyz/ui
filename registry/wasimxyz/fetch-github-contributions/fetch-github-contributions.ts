@@ -420,7 +420,10 @@ export async function fetchGithubContributions({
   today: string;
 }): Promise<WeekActivitySeries> {
   "use cache";
-  cacheLife({ revalidate: 1800 });
+  // stale is load-bearing once Partial Prefetching caches the RSC payload on
+  // the client: browsers reuse their copy for 5m without a server check.
+  // revalidate keeps the existing 30m background refresh cadence.
+  cacheLife({ stale: 300, revalidate: 1800 });
   cacheTag("github-contributions");
 
   const token = process.env.GITHUB_TOKEN;

@@ -8,6 +8,7 @@ import {
   WeekActivityCalendar,
   WeekActivityCalendarSkeleton,
   type WeekActivitySeries,
+  weekBoundsFromStart,
 } from "@/components/week-activity-calendar";
 import {
   fetchGithubContributions,
@@ -21,8 +22,12 @@ interface SearchParams {
 const DEMO_KINDS = [...GITHUB_CONTRIBUTION_KINDS, "meetings"] as const;
 type DemoKind = (typeof DEMO_KINDS)[number];
 
+const TIME_ZONE = "America/Los_Angeles";
+const WEEK_STARTS_ON = "sunday" as const;
+const WEEK_YMD = /^\d{4}-\d{2}-\d{2}$/;
+
 function parseWeek(raw: string | string[] | undefined): string | undefined {
-  return typeof raw === "string" && raw.length > 0 ? raw : undefined;
+  return typeof raw === "string" && WEEK_YMD.test(raw) ? raw : undefined;
 }
 
 function parseKinds(raw: string | string[] | undefined): DemoKind[] {
@@ -60,29 +65,44 @@ function sampleMeetingsSeries(): WeekActivitySeries {
   };
 }
 
-async function WeekActivityCalendarDemoHeatmap({
+/**
+ * URL-driven heatmap: no clock read, so `fetchGithubContributions` (`"use
+ * cache"`) can resolve during a runtime prefetch and land in the client cache.
+ */
+async function WeekHeatmap({
   kinds,
-  week,
+  weekStart,
 }: {
   kinds: DemoKind[];
-  week?: string;
+  weekStart: string;
 }) {
-  await connection();
-
-  const timeZone = "America/Los_Angeles";
-  const { weekStart, today, weekStartsOn } = resolveWeekBounds({
-    timeZone,
-    week,
+  const bounds = weekBoundsFromStart({
+    weekStart,
+    weekStartsOn: WEEK_STARTS_ON,
   });
-  const github = await fetchGithubContributions({ timeZone, weekStart, today });
+  const github = await fetchGithubContributions({
+    timeZone: TIME_ZONE,
+    weekStart: bounds.weekStart,
+    today: bounds.today,
+  });
 
   return (
     <WeekActivityCalendar
       kinds={kinds}
       series={[github, sampleMeetingsSeries()]}
-      weekStartsOn={weekStartsOn}
+      weekStartsOn={bounds.weekStartsOn}
     />
   );
+}
+
+/** Bare-URL path: read the clock once, then reuse the URL-driven renderer. */
+async function CurrentWeekHeatmap({ kinds }: { kinds: DemoKind[] }) {
+  await connection();
+  const { weekStart } = resolveWeekBounds({
+    timeZone: TIME_ZONE,
+    weekStartsOn: WEEK_STARTS_ON,
+  });
+  return <WeekHeatmap kinds={kinds} weekStart={weekStart} />;
 }
 
 export async function WeekActivityCalendarDemo({
@@ -97,11 +117,12 @@ export async function WeekActivityCalendarDemo({
   return (
     <div className="flex flex-col gap-4">
       <ContributionsDemoControls types={kinds} week={week} />
-      <Suspense
-        fallback={<WeekActivityCalendarSkeleton />}
-        key={week ?? "current"}
-      >
-        <WeekActivityCalendarDemoHeatmap kinds={kinds} week={week} />
+      <Suspense fallback={<WeekActivityCalendarSkeleton />}>
+        {week ? (
+          <WeekHeatmap kinds={kinds} weekStart={week} />
+        ) : (
+          <CurrentWeekHeatmap kinds={kinds} />
+        )}
       </Suspense>
     </div>
   );

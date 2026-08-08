@@ -211,6 +211,9 @@ export function resolveReferenceDay(
  *
  * Returns `weekStartsOn` so callers can pass the same value into
  * `WeekActivityCalendar` and keep fetch bounds aligned with display order.
+ *
+ * For URL-driven / prerenderable bounds with no clock read, use
+ * `weekBoundsFromStart` instead.
  */
 export function resolveWeekBounds({
   timeZone,
@@ -233,6 +236,47 @@ export function resolveWeekBounds({
   const reference = resolveReferenceDay(week, formatter, now);
   const startIndex = WEEK_START_INDEX[weekStartsOn];
   const { weekStart, today } = weekRange(reference, nowYmd, startIndex);
+  return { weekStart, today, startIndex, weekStartsOn };
+}
+
+/**
+ * Clock-free week bounds from a YYYY-MM-DD that falls somewhere in the week.
+ * Snaps back to the configured start-of-week and sets `today` to the week's
+ * last day (weekStart + 6), so the result is stable across midnight and safe
+ * inside a prerender / `"use cache"` scope.
+ *
+ * Prefer this when the URL already carries the week; use `resolveWeekBounds`
+ * when the clock must decide "this week".
+ */
+export function weekBoundsFromStart({
+  weekStart: raw,
+  weekStartsOn = "sunday",
+}: {
+  weekStart: string;
+  weekStartsOn?: WeekStart;
+}): {
+  weekStart: string;
+  today: string;
+  startIndex: number;
+  weekStartsOn: WeekStart;
+} {
+  const match = YMD_PREFIX.exec(raw);
+  if (!match) {
+    throw new Error(`weekBoundsFromStart: expected YYYY-MM-DD, got ${raw}`);
+  }
+
+  const startIndex = WEEK_START_INDEX[weekStartsOn];
+  const start = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  );
+  const offset = (start.getUTCDay() - startIndex + 7) % 7;
+  start.setUTCDate(start.getUTCDate() - offset);
+  const weekStart = start.toISOString().slice(0, 10);
+
+  const last = new Date(start);
+  last.setUTCDate(last.getUTCDate() + 6);
+  const today = last.toISOString().slice(0, 10);
+
   return { weekStart, today, startIndex, weekStartsOn };
 }
 

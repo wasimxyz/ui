@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDownIcon } from "@radix-ui/react-icons";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,14 +40,35 @@ const WEEK_OPTIONS = [
   { label: "4 weeks ago", weeksAgo: 4 },
 ] as const;
 
-// Local YYYY-MM-DD for a day `weeksAgo` weeks before today. Only ever called
-// from click handlers — never during render — so there's no hydration mismatch
-// from reading the clock.
-function weeksAgoToYmd(weeksAgo: number): string {
+/**
+ * Canonical Sunday-start YYYY-MM-DD for a week `weeksAgo` weeks before today.
+ * Only computed inside `DropdownMenuContent`, which mounts through a Radix
+ * Portal with no `forceMount` — so it never runs during SSR or hydration.
+ */
+function weeksAgoToWeekStart(weeksAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - weeksAgo * 7);
+  // Snap back to Sunday so one week maps to exactly one cache entry.
+  date.setDate(date.getDate() - date.getDay());
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function buildHref(
+  pathname: string,
+  nextWeek: string | undefined,
+  nextTypes: string[]
+): string {
+  const params = new URLSearchParams();
+  if (nextWeek) {
+    params.set("week", nextWeek);
+  }
+  // Omit `types` when everything is selected — the component defaults to all.
+  if (nextTypes.length !== KIND_ORDER.length) {
+    params.set("types", nextTypes.join(","));
+  }
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
 }
 
 export function ContributionsDemoControls({
@@ -60,27 +82,11 @@ export function ContributionsDemoControls({
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
-  // The URL is the single source of truth: rebuild it from the desired week +
-  // types and let the server component re-render with the new props.
-  function navigate(nextWeek: string | undefined, nextTypes: string[]) {
-    const params = new URLSearchParams();
-    if (nextWeek) {
-      params.set("week", nextWeek);
-    }
-    // Omit `types` when everything is selected — the component defaults to all.
-    if (nextTypes.length !== KIND_ORDER.length) {
-      params.set("types", nextTypes.join(","));
-    }
-    const query = params.toString();
+  // Types still use router.replace so the menu can stay open across toggles.
+  function navigateTypes(nextTypes: string[]) {
     startTransition(() => {
-      router.replace(query ? `${pathname}?${query}` : pathname, {
-        scroll: false,
-      });
+      router.replace(buildHref(pathname, week, nextTypes), { scroll: false });
     });
-  }
-
-  function selectWeek(weeksAgo: number) {
-    navigate(weeksAgo === 0 ? undefined : weeksAgoToYmd(weeksAgo), types);
   }
 
   function toggleType(value: string) {
@@ -94,10 +100,7 @@ export function ContributionsDemoControls({
     } else {
       selected.add(value);
     }
-    navigate(
-      week,
-      KIND_ORDER.filter((kind) => selected.has(kind))
-    );
+    navigateTypes(KIND_ORDER.filter((kind) => selected.has(kind)));
   }
 
   const weekLabel = week ? `Week of ${week}` : "This week";
@@ -124,14 +127,28 @@ export function ContributionsDemoControls({
           <DropdownMenuLabel>Week</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            {WEEK_OPTIONS.map((option) => (
-              <DropdownMenuItem
-                key={option.label}
-                onSelect={() => selectWeek(option.weeksAgo)}
-              >
-                {option.label}
-              </DropdownMenuItem>
-            ))}
+            {/*
+              Hrefs (and the clock they read) are computed here, inside the
+              portal-mounted menu content — never during SSR/hydration.
+              `prefetch` opts into runtime prefetch so the `"use cache"` heatmap
+              resolves before the click; `replace` keeps history clean.
+            */}
+            {WEEK_OPTIONS.map((option) => {
+              const href = buildHref(
+                pathname,
+                // Always emit an explicit week start so "This week" and a later
+                // revisit share the same cache key (no bare-URL / ?week= split).
+                weeksAgoToWeekStart(option.weeksAgo),
+                types
+              );
+              return (
+                <DropdownMenuItem asChild key={option.label}>
+                  <Link href={href} prefetch replace scroll={false}>
+                    {option.label}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
