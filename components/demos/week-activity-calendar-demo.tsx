@@ -5,6 +5,7 @@ import {
   type ActivityCounts,
   createActivityGrid,
   resolveWeekBounds,
+  WEEK_START_INDEX,
   WeekActivityCalendar,
   WeekActivityCalendarSkeleton,
   type WeekActivitySeries,
@@ -24,10 +25,29 @@ type DemoKind = (typeof DEMO_KINDS)[number];
 
 const TIME_ZONE = "America/Los_Angeles";
 const WEEK_STARTS_ON = "sunday" as const;
-const WEEK_YMD = /^\d{4}-\d{2}-\d{2}$/;
+const WEEK_YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/**
+ * Reads `?week=` as a real calendar date and snaps it to its week start, so the
+ * seven days of a week share one cache entry instead of seven. `Date.UTC` rolls
+ * nonsense like `2026-99-99` over into a valid date, hence the round-trip check.
+ */
 function parseWeek(raw: string | string[] | undefined): string | undefined {
-  return typeof raw === "string" && WEEK_YMD.test(raw) ? raw : undefined;
+  if (typeof raw !== "string") {
+    return;
+  }
+  const match = WEEK_YMD.exec(raw);
+  if (!match) {
+    return;
+  }
+  const utc = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  );
+  if (utc.toISOString().slice(0, 10) !== raw) {
+    return;
+  }
+  return weekBoundsFromStart({ weekStart: raw, weekStartsOn: WEEK_STARTS_ON })
+    .weekStart;
 }
 
 function parseKinds(raw: string | string[] | undefined): DemoKind[] {
@@ -116,7 +136,12 @@ export async function WeekActivityCalendarDemo({
 
   return (
     <div className="flex flex-col gap-4">
-      <ContributionsDemoControls types={kinds} week={week} />
+      <ContributionsDemoControls
+        timeZone={TIME_ZONE}
+        types={kinds}
+        week={week}
+        weekStartsOn={WEEK_START_INDEX[WEEK_STARTS_ON]}
+      />
       <Suspense fallback={<WeekActivityCalendarSkeleton />}>
         {week ? (
           <WeekHeatmap kinds={kinds} weekStart={week} />

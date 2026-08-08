@@ -402,9 +402,15 @@ function recordEventContributions(
  * reviews submitted, and repositories created.
  *
  * `weekStart` and `today` are passed in (not read from `new Date()` here) on
- * purpose: this function is cached with `use cache`, and a clock read inside
- * that scope would be frozen to build time. Compute bounds at request time via
- * `resolveWeekBounds` from `week-activity-calendar`.
+ * purpose: this function is cached, and a clock read inside that scope would be
+ * frozen to fill time. Derive bounds with `weekBoundsFromStart` when the week
+ * comes from the URL, or `resolveWeekBounds` when the clock must decide.
+ *
+ * Cached remotely rather than with plain `use cache`: the week is URL data, so
+ * this never lands in a route's static shell, and in-memory entries aren't
+ * shared between serverless instances — leaving GitHub to absorb the traffic.
+ * Swap to `use cache` if you deploy somewhere with persistent memory and no
+ * remote cache handler.
  *
  * Requires `GITHUB_TOKEN` (classic PAT, `repo` + `read:user`) and
  * `GITHUB_USERNAME`. Returns an empty series if either is missing. Request
@@ -419,11 +425,10 @@ export async function fetchGithubContributions({
   weekStart: string;
   today: string;
 }): Promise<WeekActivitySeries> {
-  "use cache";
-  // stale is load-bearing once Partial Prefetching caches the RSC payload on
-  // the client: browsers reuse their copy for 5m without a server check.
-  // revalidate keeps the existing 30m background refresh cadence.
-  cacheLife({ stale: 300, revalidate: 1800 });
+  "use cache: remote";
+  // expire caps how long an untouched entry can be served: a past week is
+  // immutable, but the current week's entry would otherwise never age out.
+  cacheLife({ revalidate: 1800, expire: 86_400 });
   cacheTag("github-contributions");
 
   const token = process.env.GITHUB_TOKEN;
