@@ -4,11 +4,32 @@
   "homepage": "https://github.com/wasimxyz/ui",
   "items": [
     {
-      "name": "github-hourly-contributions",
-      "type": "registry:block",
-      "title": "GitHub Hourly Contributions",
-      "description": "A day-of-week x hour-of-day heatmap of a user's GitHub activity (commits pushed, pull requests and issues opened) for a given week (defaults to the current one), with per-cell tooltips and a customizable color scale. Light/dark aware.",
+      "name": "week-activity-calendar",
+      "type": "registry:component",
+      "title": "Week Activity Calendar",
+      "description": "A day-of-week × hour-of-day heatmap that merges one or more activity series (arbitrary count kinds) into a single week calendar, with per-cell tooltips and a customizable color scale. Light/dark aware.",
       "registryDependencies": ["tooltip", "skeleton"],
+      "categories": ["dashboard", "calendar"],
+      "files": [
+        {
+          "path": "registry/wasimxyz/week-activity-calendar/week-activity-calendar.tsx",
+          "type": "registry:component",
+          "target": "@components/week-activity-calendar.tsx"
+        },
+        {
+          "path": "registry/wasimxyz/week-activity-calendar/week-activity-calendar-heatmap.tsx",
+          "type": "registry:component",
+          "target": "@components/week-activity-calendar-heatmap.tsx"
+        }
+      ]
+    },
+    {
+      "name": "fetch-github-contributions",
+      "type": "registry:lib",
+      "title": "Fetch GitHub Contributions",
+      "description": "Server-only loader that returns a WeekActivitySeries of a user's GitHub activity (commits, PRs, issues, reviews, repositories) for a given week. Pair with week-activity-calendar.",
+      "dependencies": ["server-only"],
+      "registryDependencies": ["wasimxyz/ui/week-activity-calendar"],
       "envVars": {
         "GITHUB_TOKEN": "",
         "GITHUB_USERNAME": ""
@@ -16,9 +37,9 @@
       "categories": ["dashboard", "github"],
       "files": [
         {
-          "path": "registry/wasimxyz/github-hourly-contributions/github-hourly-contributions.tsx",
-          "type": "registry:component",
-          "target": "components/github-hourly-contributions.tsx"
+          "path": "registry/wasimxyz/fetch-github-contributions/fetch-github-contributions.ts",
+          "type": "registry:lib",
+          "target": "@lib/fetch-github-contributions.ts"
         }
       ]
     }

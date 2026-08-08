@@ -4,18 +4,26 @@ A [shadcn/ui registry](https://ui.shadcn.com/docs/registry) of components I use 
 
 ## Components
 
-### `github-hourly-contributions`
+### `week-activity-calendar`
 
-A day-of-week × hour-of-day heatmap of a GitHub user's activity for the current week — commits pushed, pull requests opened, and issues opened — with a per-cell tooltip breakdown. Grayscale, light/dark aware, with a matching loading skeleton.
+A day-of-week × hour-of-day heatmap that merges one or more activity series into a single week calendar. Each series can carry arbitrary count kinds (commits, meetings, …) with per-cell tooltips and a customizable color scale. Grayscale, light/dark aware, with a matching loading skeleton.
 
-![GitHub Hourly Contributions heatmap](https://github.com/wasimxyz/wasimamiri.com/pull/33)
+### `fetch-github-contributions`
+
+Server-only loader that returns a `WeekActivitySeries` of a GitHub user's activity for a given week. Pair it with `week-activity-calendar` (and, later, other fetchers) via the `series` prop. Installing the loader pulls in the calendar automatically.
 
 ## Install
 
 **Via the GitHub address** (no configuration needed):
 
 ```bash
-npx shadcn@latest add wasimxyz/ui/github-hourly-contributions
+npx shadcn@latest add wasimxyz/ui/fetch-github-contributions
+```
+
+Or install just the calendar:
+
+```bash
+npx shadcn@latest add wasimxyz/ui/week-activity-calendar
 ```
 
 **Via the `@wasimxyz` namespace** — add this to your project's `components.json`, then install by name:
@@ -28,11 +36,33 @@ npx shadcn@latest add wasimxyz/ui/github-hourly-contributions
 }
 ```
 
+```bash
+npx shadcn@latest add @wasimxyz/fetch-github-contributions
+```
+
 ## Usage
 
-```bash
-npx shadcn@latest add @wasimxyz/github-hourly-contributions
+```tsx
+import { connection } from "next/server";
+import {
+  WeekActivityCalendar,
+  resolveWeekBounds,
+} from "@/components/week-activity-calendar";
+import { fetchGithubContributions } from "@/lib/fetch-github-contributions";
+
+export default async function Page() {
+  await connection();
+  const timeZone = "America/Los_Angeles";
+  const { weekStart, today, weekStartsOn } = resolveWeekBounds({ timeZone });
+  const github = await fetchGithubContributions({ timeZone, weekStart, today });
+
+  return (
+    <WeekActivityCalendar series={[github]} weekStartsOn={weekStartsOn} />
+  );
+}
 ```
+
+Pass additional series (e.g. from a future Google Calendar fetcher) in the same `series` array to show everything on one calendar.
 
 ## Developing this registry
 
