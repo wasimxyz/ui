@@ -1,11 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { WeekActivityHeatmap } from "./week-activity-calendar-heatmap";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,11 +19,13 @@ export interface ActivityKindMeta {
 
 /**
  * One data source’s contribution to the week grid. Pass several into
- * `WeekActivityCalendar` to render them as a single heatmap.
+ * `WeekActivityCalendar` to render them as a single heatmap. When two entries
+ * share an `id`, the later one replaces the earlier (counts are not doubled).
  */
 export interface WeekActivitySeries {
   /** 7 rows (0 = Sunday … 6 = Saturday) × 24 hours (0–23 local). */
   grid: ActivityCounts[][];
+  /** Stable identity for this series; used to dedupe when merging. */
   id: string;
   kindMeta: Record<string, ActivityKindMeta>;
   /** Kind keys this series contributes, in display order. */
@@ -76,6 +73,31 @@ export const PRIMARY_COLOR_SCALE: ColorScale = [
   "bg-primary",
 ];
 
+export interface WeekActivityCalendarProps {
+  ariaLabel?: string;
+  colorScale?: ColorScale;
+  emptyLabel?: string;
+  /**
+   * Optional filter of kind keys to include. Intensity and the summary
+   * re-normalize to the selection. An empty array renders an empty grid.
+   * Defaults to every kind across `series` when omitted.
+   */
+  kinds?: readonly string[];
+  /** One or more activity series merged into a single week heatmap. */
+  series: readonly WeekActivitySeries[];
+  summaryEmptyLabel?: string;
+  /**
+   * First day of the week for display. Pass the same value you gave to
+   * `resolveWeekBounds` (or use the `weekStartsOn` it returns) so fetch bounds
+   * and row order stay aligned.
+   */
+  weekStartsOn?: WeekStart;
+}
+
+export interface WeekActivityCalendarSkeletonProps {
+  weekStartsOn?: WeekStart;
+}
+
 // ---------------------------------------------------------------------------
 // Week-bound helpers (shared by data loaders)
 // ---------------------------------------------------------------------------
@@ -85,6 +107,15 @@ export interface CalendarDay {
   day: number;
   month: number;
   year: number;
+}
+
+/** Empty 7×24 grid of activity counts. */
+export function createActivityGrid(
+  createCell: () => ActivityCounts = () => ({})
+): ActivityCounts[][] {
+  return Array.from({ length: 7 }, () =>
+    Array.from({ length: 24 }, createCell)
+  );
 }
 
 /** Build the formatter that buckets timestamps into the configured timezone. */
@@ -177,6 +208,9 @@ export function resolveReferenceDay(
 /**
  * Request-time week bounds for a given timezone / week selection. Call outside
  * any `"use cache"` scope so the clock isn't frozen to build time.
+ *
+ * Returns `weekStartsOn` so callers can pass the same value into
+ * `WeekActivityCalendar` and keep fetch bounds aligned with display order.
  */
 export function resolveWeekBounds({
   timeZone,
@@ -188,20 +222,30 @@ export function resolveWeekBounds({
   week?: Date | string;
   weekStartsOn?: WeekStart;
   now?: Date;
-}): { weekStart: string; today: string; startIndex: number } {
+}): {
+  weekStart: string;
+  today: string;
+  startIndex: number;
+  weekStartsOn: WeekStart;
+} {
   const formatter = createPartsFormatter(timeZone);
   const nowYmd = toYmd(localCalendarDay(formatter, now));
   const reference = resolveReferenceDay(week, formatter, now);
   const startIndex = WEEK_START_INDEX[weekStartsOn];
   const { weekStart, today } = weekRange(reference, nowYmd, startIndex);
-  return { weekStart, today, startIndex };
+  return { weekStart, today, startIndex, weekStartsOn };
 }
 
 // ---------------------------------------------------------------------------
-// Layout constants
+// Layout (skeleton; heatmap keeps its own copy to stay a Client Component)
 // ---------------------------------------------------------------------------
 
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+const GRID_COLS = "grid-cols-[1rem_repeat(24,minmax(0,1fr))]";
+const GRID_WIDTH = "min-w-[320px]";
+const CELL_CLASS = "aspect-square rounded-sm";
+const ROW_STACK = "flex flex-col gap-1.5";
 
 function displayRows(weekStartsOn: number): number[] {
   return Array.from(
@@ -209,29 +253,6 @@ function displayRows(weekStartsOn: number): number[] {
     (_, position) => (weekStartsOn + position) % 7
   );
 }
-
-const START_HOUR = 0;
-const HOUR_ORDER = Array.from(
-  { length: 24 },
-  (_, index) => (index + START_HOUR) % 24
-);
-
-const GRID_COLS = "grid-cols-[1rem_repeat(24,minmax(0,1fr))]";
-const GRID_WIDTH = "min-w-[320px]";
-const CELL_CLASS = "aspect-square rounded-sm";
-const ROW_STACK = "flex flex-col gap-1.5";
-
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
-const LABEL_POSITIONS = [0, 6, 12, 18];
 
 // ---------------------------------------------------------------------------
 // Merge + presentation helpers
@@ -275,6 +296,29 @@ function addGrid(target: ActivityCounts[][], source: ActivityCounts[][]): void {
   }
 }
 
+/** Last series with a given `id` wins; order follows first appearance of each id. */
+function dedupeSeries(
+  series: readonly WeekActivitySeries[]
+): WeekActivitySeries[] {
+  const lastById = new Map<string, WeekActivitySeries>();
+  for (const entry of series) {
+    lastById.set(entry.id, entry);
+  }
+  const ordered: WeekActivitySeries[] = [];
+  const seen = new Set<string>();
+  for (const entry of series) {
+    if (seen.has(entry.id)) {
+      continue;
+    }
+    seen.add(entry.id);
+    const latest = lastById.get(entry.id);
+    if (latest) {
+      ordered.push(latest);
+    }
+  }
+  return ordered;
+}
+
 function mergeSeries(series: readonly WeekActivitySeries[]): {
   grid: ActivityCounts[][];
   totals: ActivityCounts;
@@ -284,38 +328,16 @@ function mergeSeries(series: readonly WeekActivitySeries[]): {
   const kinds: string[] = [];
   const seenKinds = new Set<string>();
   const kindMeta: Record<string, ActivityKindMeta> = {};
-  const grid: ActivityCounts[][] = Array.from({ length: 7 }, () =>
-    Array.from({ length: 24 }, () => ({}))
-  );
+  const grid = createActivityGrid();
   const totals: ActivityCounts = {};
 
-  for (const entry of series) {
+  for (const entry of dedupeSeries(series)) {
     registerKinds(entry, kinds, seenKinds, kindMeta);
     addGrid(grid, entry.grid);
     addCounts(totals, entry.totals);
   }
 
   return { grid, totals, kinds, kindMeta };
-}
-
-function levelFor(count: number, max: number, steps: number): number {
-  if (count <= 0 || max <= 0 || steps <= 0) {
-    return 0;
-  }
-  const level = Math.ceil((count / max) * steps);
-  return Math.min(level, steps);
-}
-
-function hourLabel(hour: number): string {
-  const period = hour < 12 ? "AM" : "PM";
-  const twelveHour = hour % 12 === 0 ? 12 : hour % 12;
-  return `${twelveHour} ${period}`;
-}
-
-function shortHour(hour: number): string {
-  const period = hour < 12 ? "a" : "p";
-  const twelveHour = hour % 12 === 0 ? 12 : hour % 12;
-  return `${twelveHour}${period}`;
 }
 
 function countNoun(meta: ActivityKindMeta, count: number): string {
@@ -325,81 +347,6 @@ function countNoun(meta: ActivityKindMeta, count: number): string {
 function summaryPhrase(meta: ActivityKindMeta, count: number): string {
   const phrase = countNoun(meta, count);
   return meta.verb ? `${phrase} ${meta.verb}` : phrase;
-}
-
-function HeatmapCell({
-  cell,
-  colorScale,
-  dayName,
-  emptyLabel,
-  hour,
-  kindMeta,
-  kinds,
-  max,
-}: {
-  cell: ActivityCounts;
-  colorScale: ColorScale;
-  dayName: string;
-  emptyLabel: string;
-  hour: number;
-  kindMeta: Record<string, ActivityKindMeta>;
-  kinds: readonly string[];
-  max: number;
-}) {
-  const total = cellTotal(cell, kinds);
-  const lines = kinds
-    .filter((kind) => (cell[kind] ?? 0) > 0)
-    .map((kind) => {
-      const meta = kindMeta[kind] ?? { one: kind, other: kind };
-      return countNoun(meta, cell[kind] ?? 0);
-    });
-
-  const level = levelFor(total, max, colorScale.length - 1);
-
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        aria-label={`${dayName} ${hourLabel(hour)}`}
-        className={cn(CELL_CLASS, colorScale[level])}
-        type="button"
-      />
-      <TooltipContent className="flex flex-col gap-0.5">
-        <span className="font-medium">
-          {dayName} {hourLabel(hour)}
-        </span>
-        {lines.length > 0 ? (
-          lines.map((line) => <span key={line}>{line}</span>)
-        ) : (
-          <span>{emptyLabel}</span>
-        )}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-function HourAxis() {
-  return (
-    <div
-      className={cn(
-        "grid gap-1 pt-1 text-muted-foreground text-xs md:gap-2",
-        GRID_COLS
-      )}
-    >
-      <span />
-      {LABEL_POSITIONS.map((position, index) => {
-        const isLast = index === LABEL_POSITIONS.length - 1;
-        return (
-          <span
-            className={cn("col-span-6", isLast && "flex justify-between")}
-            key={position}
-          >
-            <span>{shortHour(HOUR_ORDER[position])}</span>
-            {isLast ? <span>{shortHour(HOUR_ORDER[23])}</span> : null}
-          </span>
-        );
-      })}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -414,33 +361,15 @@ export function WeekActivityCalendar({
   emptyLabel = "No activity",
   summaryEmptyLabel = "No activity this week",
   ariaLabel = "Activity by day of week and hour of day",
-}: {
-  /** One or more activity series merged into a single week heatmap. */
-  series: readonly WeekActivitySeries[];
-  /**
-   * Optional filter of kind keys to include. Intensity and the summary
-   * re-normalize to the selection. Defaults to every kind across `series`.
-   */
-  kinds?: readonly string[];
-  colorScale?: ColorScale;
-  weekStartsOn?: WeekStart;
-  emptyLabel?: string;
-  summaryEmptyLabel?: string;
-  ariaLabel?: string;
-}) {
+}: WeekActivityCalendarProps) {
   const scale = colorScale.length > 0 ? colorScale : DEFAULT_COLOR_SCALE;
-  const startIndex =
-    typeof weekStartsOn === "string"
-      ? WEEK_START_INDEX[weekStartsOn]
-      : weekStartsOn;
+  const startIndex = WEEK_START_INDEX[weekStartsOn];
 
   const merged = mergeSeries(series);
-  const selected = kindsFilter ? new Set(kindsFilter) : null;
-  const activeKinds =
-    selected && selected.size > 0
-      ? merged.kinds.filter((kind) => selected.has(kind))
-      : merged.kinds;
-  const kinds = activeKinds.length > 0 ? activeKinds : merged.kinds;
+  const kinds =
+    kindsFilter === undefined
+      ? merged.kinds
+      : merged.kinds.filter((kind) => kindsFilter.includes(kind));
 
   let max = 0;
   for (const row of merged.grid) {
@@ -462,54 +391,27 @@ export function WeekActivityCalendar({
       .join(", ") || summaryEmptyLabel;
 
   return (
-    <TooltipProvider>
-      <div className="flex flex-col gap-3 overflow-x-auto">
-        <div
-          aria-label={ariaLabel}
-          className={cn(ROW_STACK, GRID_WIDTH)}
-          role="img"
-        >
-          {displayRows(startIndex).map((dataRow) => (
-            <div
-              className={cn("grid items-center gap-1 md:gap-2", GRID_COLS)}
-              key={dataRow}
-            >
-              <span className="text-muted-foreground text-xs">
-                {WEEKDAY_LABELS[dataRow]}
-              </span>
-              {HOUR_ORDER.map((hour) => (
-                <HeatmapCell
-                  cell={merged.grid[dataRow][hour]}
-                  colorScale={scale}
-                  dayName={DAY_NAMES[dataRow]}
-                  emptyLabel={emptyLabel}
-                  hour={hour}
-                  key={hour}
-                  kindMeta={merged.kindMeta}
-                  kinds={kinds}
-                  max={max}
-                />
-              ))}
-            </div>
-          ))}
-          <HourAxis />
-        </div>
-        <span className="text-muted-foreground text-sm">{summary}</span>
-      </div>
-    </TooltipProvider>
+    <div className="flex flex-col gap-3 overflow-x-auto">
+      <WeekActivityHeatmap
+        ariaLabel={`${ariaLabel}. ${summary}`}
+        colorScale={scale}
+        emptyLabel={emptyLabel}
+        grid={merged.grid}
+        kindMeta={merged.kindMeta}
+        kinds={kinds}
+        max={max}
+        startIndex={startIndex}
+      />
+      <span className="text-muted-foreground text-sm">{summary}</span>
+    </div>
   );
 }
 
 /** Layout-matched loading state for `WeekActivityCalendar`. */
 export function WeekActivityCalendarSkeleton({
   weekStartsOn = "sunday",
-}: {
-  weekStartsOn?: WeekStart | number;
-} = {}) {
-  const startIndex =
-    typeof weekStartsOn === "string"
-      ? WEEK_START_INDEX[weekStartsOn]
-      : weekStartsOn;
+}: WeekActivityCalendarSkeletonProps = {}) {
+  const startIndex = WEEK_START_INDEX[weekStartsOn];
 
   return (
     <div className="flex flex-col gap-3 overflow-x-auto">
@@ -522,12 +424,22 @@ export function WeekActivityCalendarSkeleton({
             <span className="text-muted-foreground text-xs">
               {WEEKDAY_LABELS[dataRow]}
             </span>
-            {HOUR_ORDER.map((hour) => (
+            {HOURS.map((hour) => (
               <Skeleton className={CELL_CLASS} key={hour} />
             ))}
           </div>
         ))}
-        <HourAxis />
+        <div
+          className={cn(
+            "grid gap-1 pt-1 text-muted-foreground text-xs md:gap-2",
+            GRID_COLS
+          )}
+        >
+          <span />
+          {[0, 6, 12, 18].map((position) => (
+            <span className="col-span-6" key={position} />
+          ))}
+        </div>
       </div>
       <Skeleton className="h-5 w-72" />
     </div>

@@ -10,15 +10,20 @@ A day-of-week × hour-of-day heatmap that merges one or more activity series int
 
 ### `fetch-github-contributions`
 
-Server-only loader that returns a `WeekActivitySeries` of a GitHub user's activity for a given week. Pair it with `week-activity-calendar` (and, later, other fetchers) via the `series` prop.
+Server-only loader that returns a `WeekActivitySeries` of a GitHub user's activity for a given week. Pair it with `week-activity-calendar` (and, later, other fetchers) via the `series` prop. Installing the loader pulls in the calendar automatically.
 
 ## Install
 
 **Via the GitHub address** (no configuration needed):
 
 ```bash
-npx shadcn@latest add wasimxyz/ui/week-activity-calendar
 npx shadcn@latest add wasimxyz/ui/fetch-github-contributions
+```
+
+Or install just the calendar:
+
+```bash
+npx shadcn@latest add wasimxyz/ui/week-activity-calendar
 ```
 
 **Via the `@wasimxyz` namespace** — add this to your project's `components.json`, then install by name:
@@ -32,7 +37,6 @@ npx shadcn@latest add wasimxyz/ui/fetch-github-contributions
 ```
 
 ```bash
-npx shadcn@latest add @wasimxyz/week-activity-calendar
 npx shadcn@latest add @wasimxyz/fetch-github-contributions
 ```
 
@@ -49,10 +53,12 @@ import { fetchGithubContributions } from "@/lib/fetch-github-contributions";
 export default async function Page() {
   await connection();
   const timeZone = "America/Los_Angeles";
-  const { weekStart, today } = resolveWeekBounds({ timeZone });
+  const { weekStart, today, weekStartsOn } = resolveWeekBounds({ timeZone });
   const github = await fetchGithubContributions({ timeZone, weekStart, today });
 
-  return <WeekActivityCalendar series={[github]} />;
+  return (
+    <WeekActivityCalendar series={[github]} weekStartsOn={weekStartsOn} />
+  );
 }
 ```
 

@@ -14,7 +14,12 @@
         {
           "path": "registry/wasimxyz/week-activity-calendar/week-activity-calendar.tsx",
           "type": "registry:component",
-          "target": "components/week-activity-calendar.tsx"
+          "target": "@components/week-activity-calendar.tsx"
+        },
+        {
+          "path": "registry/wasimxyz/week-activity-calendar/week-activity-calendar-heatmap.tsx",
+          "type": "registry:component",
+          "target": "@components/week-activity-calendar-heatmap.tsx"
         }
       ]
     },
@@ -23,7 +28,8 @@
       "type": "registry:lib",
       "title": "Fetch GitHub Contributions",
       "description": "Server-only loader that returns a WeekActivitySeries of a user's GitHub activity (commits, PRs, issues, reviews, repositories) for a given week. Pair with week-activity-calendar.",
-      "registryDependencies": ["week-activity-calendar"],
+      "dependencies": ["server-only"],
+      "registryDependencies": ["wasimxyz/ui/week-activity-calendar"],
       "envVars": {
         "GITHUB_TOKEN": "",
         "GITHUB_USERNAME": ""
@@ -33,7 +39,7 @@
         {
           "path": "registry/wasimxyz/fetch-github-contributions/fetch-github-contributions.ts",
           "type": "registry:lib",
-          "target": "lib/fetch-github-contributions.ts"
+          "target": "@lib/fetch-github-contributions.ts"
         }
       ]
     }

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { ContributionsDemoControls } from "@/components/demos/contributions-demo-controls";
 import {
   type ActivityCounts,
+  createActivityGrid,
   resolveWeekBounds,
   WeekActivityCalendar,
   WeekActivityCalendarSkeleton,
@@ -31,15 +32,9 @@ function parseKinds(raw: string | string[] | undefined): DemoKind[] {
   return selected.length > 0 ? [...selected] : [...DEMO_KINDS];
 }
 
-function emptyGrid(): ActivityCounts[][] {
-  return Array.from({ length: 7 }, () =>
-    Array.from({ length: 24 }, () => ({}))
-  );
-}
-
 /** Demo-only second series so the calendar merge path is exercised. */
 function sampleMeetingsSeries(): WeekActivitySeries {
-  const grid = emptyGrid();
+  const grid = createActivityGrid();
   const totals: ActivityCounts = { meetings: 0 };
 
   // Mon 10am, Wed 2pm, Fri 9am — illustrative meeting slots.
@@ -75,13 +70,17 @@ async function WeekActivityCalendarDemoHeatmap({
   await connection();
 
   const timeZone = "America/Los_Angeles";
-  const { weekStart, today } = resolveWeekBounds({ timeZone, week });
+  const { weekStart, today, weekStartsOn } = resolveWeekBounds({
+    timeZone,
+    week,
+  });
   const github = await fetchGithubContributions({ timeZone, weekStart, today });
 
   return (
     <WeekActivityCalendar
       kinds={kinds}
       series={[github, sampleMeetingsSeries()]}
+      weekStartsOn={weekStartsOn}
     />
   );
 }
@@ -100,7 +99,7 @@ export async function WeekActivityCalendarDemo({
       <ContributionsDemoControls types={kinds} week={week} />
       <Suspense
         fallback={<WeekActivityCalendarSkeleton />}
-        key={`${week ?? "current"}|${kinds.join(",")}`}
+        key={week ?? "current"}
       >
         <WeekActivityCalendarDemoHeatmap kinds={kinds} week={week} />
       </Suspense>

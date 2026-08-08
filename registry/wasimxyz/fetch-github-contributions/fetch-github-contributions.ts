@@ -1,4 +1,4 @@
-"server-only";
+import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 import type {
@@ -6,7 +6,10 @@ import type {
   ActivityKindMeta,
   WeekActivitySeries,
 } from "@/components/week-activity-calendar";
-import { createPartsFormatter } from "@/components/week-activity-calendar";
+import {
+  createActivityGrid,
+  createPartsFormatter,
+} from "@/components/week-activity-calendar";
 
 const GITHUB_API = "https://api.github.com";
 const PER_PAGE = 100;
@@ -19,6 +22,9 @@ const MAX_SEARCH_PAGES = 10;
 // Per-branch commit pages to walk (300 of the user's commits on one branch in a
 // single week is already implausible).
 const MAX_COMMIT_PAGES = 3;
+// Cap parallel commit fetches so a busy week doesn't burst GitHub secondary
+// rate limits.
+const COMMIT_FETCH_CONCURRENCY = 5;
 
 export type GithubContributionKind =
   | "commits"
@@ -74,18 +80,22 @@ function emptyCell(): ActivityCounts {
   };
 }
 
-function createEmptyGrid(): ActivityCounts[][] {
-  return Array.from({ length: 7 }, () => Array.from({ length: 24 }, emptyCell));
-}
-
 function emptySeries(): WeekActivitySeries {
   return {
     id: "github",
     kinds: GITHUB_CONTRIBUTION_KINDS,
     kindMeta: GITHUB_KIND_META,
-    grid: createEmptyGrid(),
+    grid: createActivityGrid(emptyCell),
     totals: emptyCell(),
   };
+}
+
+/** Shift a YYYY-MM-DD calendar date by `days` using UTC day arithmetic. */
+function shiftYmd(ymd: string, days: number): string {
+  const [year, month, day] = ymd.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function cellBucket(
@@ -155,7 +165,7 @@ interface GitHubEvent {
 async function fetchWeekEvents(
   token: string,
   username: string,
-  weekStart: string
+  fetchStart: string
 ): Promise<GitHubEvent[]> {
   const collected: GitHubEvent[] = [];
 
@@ -166,12 +176,12 @@ async function fetchWeekEvents(
       break;
     }
 
-    const inWeek = events.filter(
-      (event) => event.created_at.slice(0, 10) >= weekStart
+    const inWindow = events.filter(
+      (event) => event.created_at.slice(0, 10) >= fetchStart
     );
-    collected.push(...inWeek);
+    collected.push(...inWindow);
 
-    if (inWeek.length < events.length || events.length < PER_PAGE) {
+    if (inWindow.length < events.length || events.length < PER_PAGE) {
       break;
     }
   }
@@ -232,6 +242,33 @@ async function fetchCommits(
   return commits;
 }
 
+async function mapPool<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>
+): Promise<R[]> {
+  if (items.length === 0) {
+    return [];
+  }
+  const results: R[] = new Array(items.length);
+  let next = 0;
+
+  async function worker(): Promise<void> {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await mapper(items[index]);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    () => worker()
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 interface IssueSearchItem {
   created_at: string;
   pull_request?: unknown;
@@ -240,10 +277,10 @@ interface IssueSearchItem {
 async function fetchWeekIssues(
   token: string,
   username: string,
-  weekStart: string
+  fetchStart: string
 ): Promise<IssueSearchItem[]> {
   const collected: IssueSearchItem[] = [];
-  const query = `author:${username} created:>=${weekStart}`;
+  const query = `author:${username} created:>=${fetchStart}`;
 
   for (let page = 1; page <= MAX_SEARCH_PAGES; page++) {
     const url = `${GITHUB_API}/search/issues?q=${encodeURIComponent(query)}&per_page=${PER_PAGE}&page=${page}`;
@@ -288,12 +325,15 @@ async function recordCommits(
   username: string,
   events: GitHubEvent[],
   weekStart: string,
-  today: string
+  today: string,
+  fetchStart: string
 ): Promise<void> {
-  const sinceIso = `${weekStart}T00:00:00Z`;
+  // `fetchStart` is one local day before `weekStart` so UTC-based `since=`
+  // still covers the first hours of the local week.
+  const sinceIso = `${fetchStart}T00:00:00Z`;
   const targets = latestPushTargets(events);
-  const lists = await Promise.all(
-    targets.map((target) => fetchCommits(token, username, target, sinceIso))
+  const lists = await mapPool(targets, COMMIT_FETCH_CONCURRENCY, (target) =>
+    fetchCommits(token, username, target, sinceIso)
   );
 
   const seen = new Set<string>();
@@ -367,8 +407,8 @@ function recordEventContributions(
  * `resolveWeekBounds` from `week-activity-calendar`.
  *
  * Requires `GITHUB_TOKEN` (classic PAT, `repo` + `read:user`) and
- * `GITHUB_USERNAME`. Returns an empty series if either is missing or a request
- * fails.
+ * `GITHUB_USERNAME`. Returns an empty series if either is missing. Request
+ * failures throw so a transient error isn't cached as emptiness.
  */
 export async function fetchGithubContributions({
   timeZone,
@@ -390,46 +430,37 @@ export async function fetchGithubContributions({
   }
 
   const formatter = createPartsFormatter(timeZone);
-  const grid = createEmptyGrid();
+  const grid = createActivityGrid(emptyCell);
   const totals = emptyCell();
 
-  try {
-    const [events, issues] = await Promise.all([
-      fetchWeekEvents(token, username, weekStart),
-      fetchWeekIssues(token, username, weekStart),
-    ]);
+  // Start one UTC day early so UTC date filters don't drop the first hours of
+  // the local week; `cellBucket` still enforces exact local bounds.
+  const fetchStart = shiftYmd(weekStart, -1);
 
-    await recordCommits(
-      formatter,
-      grid,
-      totals,
-      token,
-      username,
-      events,
-      weekStart,
-      today
-    );
+  const [events, issues] = await Promise.all([
+    fetchWeekEvents(token, username, fetchStart),
+    fetchWeekIssues(token, username, fetchStart),
+  ]);
 
-    recordEventContributions(formatter, grid, totals, events, weekStart, today);
+  await recordCommits(
+    formatter,
+    grid,
+    totals,
+    token,
+    username,
+    events,
+    weekStart,
+    today,
+    fetchStart
+  );
 
-    for (const item of issues) {
-      const kind: GithubContributionKind = item.pull_request
-        ? "pullRequests"
-        : "issues";
-      record(
-        formatter,
-        grid,
-        totals,
-        item.created_at,
-        kind,
-        1,
-        weekStart,
-        today
-      );
-    }
-  } catch (error) {
-    console.error("Failed to load GitHub contributions:", error);
-    return emptySeries();
+  recordEventContributions(formatter, grid, totals, events, weekStart, today);
+
+  for (const item of issues) {
+    const kind: GithubContributionKind = item.pull_request
+      ? "pullRequests"
+      : "issues";
+    record(formatter, grid, totals, item.created_at, kind, 1, weekStart, today);
   }
 
   return {

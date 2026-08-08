@@ -8,6 +8,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -116,20 +117,22 @@ export function ContributionsDemoControls({
         <DropdownMenuTrigger asChild>
           <Button className="justify-between gap-2" variant="outline">
             {weekLabel}
-            <ChevronDownIcon className="size-4 opacity-60" />
+            <ChevronDownIcon className="opacity-60" data-icon="inline-end" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuLabel>Week</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {WEEK_OPTIONS.map((option) => (
-            <DropdownMenuItem
-              key={option.label}
-              onSelect={() => selectWeek(option.weeksAgo)}
-            >
-              {option.label}
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuGroup>
+            {WEEK_OPTIONS.map((option) => (
+              <DropdownMenuItem
+                key={option.label}
+                onSelect={() => selectWeek(option.weeksAgo)}
+              >
+                {option.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -137,25 +140,27 @@ export function ContributionsDemoControls({
         <DropdownMenuTrigger asChild>
           <Button className="justify-between gap-2" variant="outline">
             {typesLabel}
-            <ChevronDownIcon className="size-4 opacity-60" />
+            <ChevronDownIcon className="opacity-60" data-icon="inline-end" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuLabel>Activity types</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {KIND_OPTIONS.map((option) => (
-            <DropdownMenuCheckboxItem
-              checked={types.includes(option.value)}
-              key={option.value}
-              // Keep the menu open so several types can be toggled at once.
-              onSelect={(event) => {
-                event.preventDefault();
-                toggleType(option.value);
-              }}
-            >
-              {option.label}
-            </DropdownMenuCheckboxItem>
-          ))}
+          <DropdownMenuGroup>
+            {KIND_OPTIONS.map((option) => (
+              <DropdownMenuCheckboxItem
+                checked={types.includes(option.value)}
+                key={option.value}
+                // Keep the menu open so several types can be toggled at once.
+                onSelect={(event) => {
+                  event.preventDefault();
+                  toggleType(option.value);
+                }}
+              >
+                {option.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

@@ -7,6 +7,7 @@
 import type { ComponentType, ReactNode } from "react";
 import { WeekActivityCalendarDemo } from "@/components/demos/week-activity-calendar-demo";
 import {
+  createActivityGrid,
   WeekActivityCalendar,
   WeekActivityCalendarSkeleton,
   type WeekActivitySeries,
@@ -29,15 +30,9 @@ export interface RegistryRender {
   Skeleton: () => ReactNode;
 }
 
-function emptyGrid() {
-  return Array.from({ length: 7 }, () =>
-    Array.from({ length: 24 }, () => ({}))
-  );
-}
-
 /** Minimal static series so the bare Component preview has something to show. */
 function previewSeries(): WeekActivitySeries {
-  const grid = emptyGrid();
+  const grid = createActivityGrid();
   grid[1][10] = { commits: 2 };
   grid[3][14] = { meetings: 1 };
   return {
