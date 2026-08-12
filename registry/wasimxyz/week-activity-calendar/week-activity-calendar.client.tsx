@@ -100,7 +100,7 @@ interface TipState {
   title: string;
 }
 
-export function WeekActivityHeatmap({
+export function WeekActivityCalendarGrid({
   ariaLabel,
   colorScale,
   emptyLabel,

@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { WeekActivityHeatmap } from "./week-activity-calendar-heatmap";
+import { WeekActivityCalendarGrid } from "./week-activity-calendar.client";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -281,7 +281,7 @@ export function weekBoundsFromStart({
 }
 
 // ---------------------------------------------------------------------------
-// Layout (skeleton; heatmap keeps its own copy to stay a Client Component)
+// Layout (skeleton; .client keeps its own copy to stay a Client Component)
 // ---------------------------------------------------------------------------
 
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -436,7 +436,7 @@ export function WeekActivityCalendar({
 
   return (
     <div className="flex flex-col gap-3 overflow-x-auto">
-      <WeekActivityHeatmap
+      <WeekActivityCalendarGrid
         ariaLabel={`${ariaLabel}. ${summary}`}
         colorScale={scale}
         emptyLabel={emptyLabel}
