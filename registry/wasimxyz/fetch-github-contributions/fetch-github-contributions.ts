@@ -12,6 +12,8 @@ import {
 } from "@/components/week-activity-calendar";
 
 const GITHUB_API = "https://api.github.com";
+
+export const GITHUB_CONTRIBUTIONS_TAG = "github-contributions";
 const PER_PAGE = 100;
 // The events feed exposes at most ~300 recent events (3 pages of 100), which
 // comfortably covers a single week.
@@ -218,14 +220,15 @@ async function fetchCommits(
   token: string,
   username: string,
   target: PushTarget,
-  sinceIso: string
+  sinceIso: string,
+  untilIso: string
 ): Promise<RepoCommit[]> {
   const commits: RepoCommit[] = [];
   const author = encodeURIComponent(username);
 
   try {
     for (let page = 1; page <= MAX_COMMIT_PAGES; page++) {
-      const url = `${GITHUB_API}/repos/${target.repo}/commits?sha=${target.head}&author=${author}&since=${sinceIso}&per_page=${PER_PAGE}&page=${page}`;
+      const url = `${GITHUB_API}/repos/${target.repo}/commits?sha=${target.head}&author=${author}&since=${sinceIso}&until=${untilIso}&per_page=${PER_PAGE}&page=${page}`;
       const batch = await githubFetch<RepoCommit[]>(url, token);
       if (!(Array.isArray(batch) && batch.length > 0)) {
         break;
@@ -328,12 +331,13 @@ async function recordCommits(
   today: string,
   fetchStart: string
 ): Promise<void> {
-  // `fetchStart` is one local day before `weekStart` so UTC-based `since=`
-  // still covers the first hours of the local week.
+  // One local day of slack on each side so UTC-based bounds still cover the
+  // first and last hours of the local week.
   const sinceIso = `${fetchStart}T00:00:00Z`;
+  const untilIso = `${shiftYmd(today, 1)}T00:00:00Z`;
   const targets = latestPushTargets(events);
   const lists = await mapPool(targets, COMMIT_FETCH_CONCURRENCY, (target) =>
-    fetchCommits(token, username, target, sinceIso)
+    fetchCommits(token, username, target, sinceIso, untilIso)
   );
 
   const seen = new Set<string>();
@@ -429,7 +433,12 @@ export async function fetchGithubContributions({
   // expire caps how long an untouched entry can be served: a past week is
   // immutable, but the current week's entry would otherwise never age out.
   cacheLife({ revalidate: 1800, expire: 86_400 });
-  cacheTag("github-contributions");
+  // Per-week tag as well, so the live week can be refreshed on its own without
+  // discarding weeks that are already immutable.
+  cacheTag(
+    GITHUB_CONTRIBUTIONS_TAG,
+    `${GITHUB_CONTRIBUTIONS_TAG}:${weekStart}`
+  );
 
   const token = process.env.GITHUB_TOKEN;
   const username = process.env.GITHUB_USERNAME;
