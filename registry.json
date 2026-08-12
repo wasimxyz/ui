@@ -17,9 +17,9 @@
           "target": "@components/week-activity-calendar.tsx"
         },
         {
-          "path": "registry/wasimxyz/week-activity-calendar/week-activity-calendar-heatmap.tsx",
+          "path": "registry/wasimxyz/week-activity-calendar/week-activity-calendar.client.tsx",
           "type": "registry:component",
-          "target": "@components/week-activity-calendar-heatmap.tsx"
+          "target": "@components/week-activity-calendar.client.tsx"
         }
       ]
     },
