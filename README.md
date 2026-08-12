@@ -2,16 +2,6 @@
 
 A [shadcn/ui registry](https://ui.shadcn.com/docs/registry) of components I use on [wasimamiri.com](https://wasimamiri.com). Install any item with the shadcn CLI — its files, dependencies, and required env vars come with it.
 
-## Components
-
-### `week-activity-calendar`
-
-A day-of-week × hour-of-day heatmap that merges one or more activity series into a single week calendar. Each series can carry arbitrary count kinds (commits, meetings, …) with per-cell tooltips and a customizable color scale. Grayscale, light/dark aware, with a matching loading skeleton.
-
-### `fetch-github-contributions`
-
-Server-only loader that returns a `WeekActivitySeries` of a GitHub user's activity for a given week. Pair it with `week-activity-calendar` (and, later, other fetchers) via the `series` prop. Installing the loader pulls in the calendar automatically.
-
 ## Install
 
 **Via the GitHub address** (no configuration needed):
@@ -38,39 +28,6 @@ npx shadcn@latest add wasimxyz/ui/week-activity-calendar
 
 ```bash
 npx shadcn@latest add @wasimxyz/fetch-github-contributions
-```
-
-## Usage
-
-```tsx
-import { connection } from "next/server";
-import {
-  WeekActivityCalendar,
-  resolveWeekBounds,
-} from "@/components/week-activity-calendar";
-import { fetchGithubContributions } from "@/lib/fetch-github-contributions";
-
-export default async function Page() {
-  await connection();
-  const timeZone = "America/Los_Angeles";
-  const { weekStart, today, weekStartsOn } = resolveWeekBounds({ timeZone });
-  const github = await fetchGithubContributions({ timeZone, weekStart, today });
-
-  return (
-    <WeekActivityCalendar series={[github]} weekStartsOn={weekStartsOn} />
-  );
-}
-```
-
-Pass additional series (e.g. from a future Google Calendar fetcher) in the same `series` array to show everything on one calendar.
-
-Each cached week is tagged twice — `GITHUB_CONTRIBUTIONS_TAG` for every week, and `` `${GITHUB_CONTRIBUTIONS_TAG}:${weekStart}` `` for that week alone — so you can refresh the live week without discarding past weeks, which never change:
-
-```ts
-import { revalidateTag } from "next/cache";
-import { GITHUB_CONTRIBUTIONS_TAG } from "@/lib/fetch-github-contributions";
-
-revalidateTag(`${GITHUB_CONTRIBUTIONS_TAG}:${weekStart}`);
 ```
 
 ## Developing this registry
