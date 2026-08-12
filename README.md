@@ -64,6 +64,15 @@ export default async function Page() {
 
 Pass additional series (e.g. from a future Google Calendar fetcher) in the same `series` array to show everything on one calendar.
 
+Each cached week is tagged twice — `GITHUB_CONTRIBUTIONS_TAG` for every week, and `` `${GITHUB_CONTRIBUTIONS_TAG}:${weekStart}` `` for that week alone — so you can refresh the live week without discarding past weeks, which never change:
+
+```ts
+import { revalidateTag } from "next/cache";
+import { GITHUB_CONTRIBUTIONS_TAG } from "@/lib/fetch-github-contributions";
+
+revalidateTag(`${GITHUB_CONTRIBUTIONS_TAG}:${weekStart}`);
+```
+
 ## Developing this registry
 
 ```bash

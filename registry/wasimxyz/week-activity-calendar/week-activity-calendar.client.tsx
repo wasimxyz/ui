@@ -72,6 +72,7 @@ function countNoun(meta: ActivityKindMeta, count: number): string {
 function HourAxis() {
   return (
     <div
+      aria-hidden
       className={cn(
         "grid gap-1 pt-1 text-muted-foreground text-xs md:gap-2",
         GRID_COLS
@@ -98,6 +99,23 @@ interface TipState {
   lines: string[];
   rect: DOMRect;
   title: string;
+}
+
+function tooltipLines(
+  cell: ActivityCounts,
+  kinds: readonly string[],
+  kindMeta: Record<string, ActivityKindMeta>
+): string[] {
+  const lines: string[] = [];
+  for (const kind of kinds) {
+    const count = cell[kind] ?? 0;
+    if (count > 0) {
+      lines.push(
+        countNoun(kindMeta[kind] ?? { one: kind, other: kind }, count)
+      );
+    }
+  }
+  return lines;
 }
 
 export function WeekActivityCalendarGrid({
@@ -130,6 +148,7 @@ export function WeekActivityCalendarGrid({
       >
         {displayRows(startIndex).map((dataRow) => (
           <div
+            aria-hidden
             className={cn("grid items-center gap-1 md:gap-2", GRID_COLS)}
             key={dataRow}
           >
@@ -140,12 +159,6 @@ export function WeekActivityCalendarGrid({
               const cell = grid[dataRow][hour];
               const total = cellTotal(cell, kinds);
               const level = levelFor(total, max, colorScale.length - 1);
-              const lines = kinds
-                .filter((kind) => (cell[kind] ?? 0) > 0)
-                .map((kind) => {
-                  const meta = kindMeta[kind] ?? { one: kind, other: kind };
-                  return countNoun(meta, cell[kind] ?? 0);
-                });
 
               return (
                 <div
@@ -154,7 +167,7 @@ export function WeekActivityCalendarGrid({
                   onPointerEnter={(event) => {
                     setTip({
                       title: `${DAY_NAMES[dataRow]} ${hourLabel(hour)}`,
-                      lines,
+                      lines: tooltipLines(cell, kinds, kindMeta),
                       rect: event.currentTarget.getBoundingClientRect(),
                     });
                   }}
